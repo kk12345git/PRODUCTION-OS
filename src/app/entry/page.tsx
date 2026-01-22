@@ -38,9 +38,9 @@ export default function ProductionEntry() {
                     getAllProducts(),
                     getAllProductCategories(),
                     getAllEmployees()
-                ])
+                ]);
                 setHospitals(hospitalsData);
-                setProducts(productsData as any);
+                setProducts(productsData);
                 setCategories(categoriesData);
                 setEmployees(employeesData);
             } catch (error) {

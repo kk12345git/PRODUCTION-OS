@@ -38,10 +38,10 @@ export interface Product {
     id: string;
     name: string;
     category_id: string | null;
-    gsm: number | null;
-    size1: string | null;
-    size2: string | null;
-    size3: string | null;
+    gsm?: number | null;
+    size1?: string | null;
+    size2?: string | null;
+    size3?: string | null;
     target_per_hour: number;
     created_at: string;
     // Joined data
