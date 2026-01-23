@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, PenTool, BarChart3, Settings, LogOut, Users, FolderOpen, List, Building2, Package } from 'lucide-react';
+import { LayoutDashboard, PenTool, BarChart3, Settings, LogOut, Users, FolderOpen, List, Building2, Package, Warehouse } from 'lucide-react';
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -15,9 +15,11 @@ export default function Sidebar() {
         { href: '/hospitals', label: 'Hospitals', icon: Building2 },
         { href: '/categories', label: 'Categories', icon: FolderOpen },
         { href: '/products', label: 'Products', icon: Package },
+        { href: '/inventory/raw-materials', label: 'Inventory', icon: Warehouse },
         { href: '/reports', label: 'Reports', icon: BarChart3 },
         { href: '/settings', label: 'Settings', icon: Settings },
     ];
+
 
 
     return (

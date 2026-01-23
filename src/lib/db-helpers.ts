@@ -831,3 +831,208 @@ export async function getInsights(startDate: string, endDate: string) {
 
     return insights.length > 0 ? insights : ['📊 Analyzing production data...'];
 }
+
+// ============================================
+// INVENTORY MANAGEMENT
+// ============================================
+
+/**
+ * Get all inventory items
+ */
+export async function getAllInventoryItems(): Promise<any[]> {
+    const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*, product_categories(name)')
+        .order('name');
+
+    if (error) throw error;
+    return data || [];
+}
+
+/**
+ * Get inventory items by type
+ */
+export async function getInventoryItemsByType(itemType: string): Promise<any[]> {
+    const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*, product_categories(name)')
+        .eq('item_type', itemType)
+        .order('name');
+
+    if (error) throw error;
+    return data || [];
+}
+
+/**
+ * Get a single inventory item by ID
+ */
+export async function getInventoryItemById(id: string): Promise<any> {
+    const { data, error } = await supabase
+        .from('inventory_items')
+        .select('*, product_categories(name)')
+        .eq('id', id)
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+/**
+ * Create a new inventory item
+ */
+export async function createInventoryItem(item: any): Promise<any> {
+    const { data, error } = await supabase
+        .from('inventory_items')
+        .insert({
+            ...item,
+            current_stock: 0, // Always start at 0
+        })
+        .select()
+        .single();
+
+    if (error || !data) throw error;
+
+    await logActivity('CREATE', 'PRODUCT', data.id, { name: data.name });
+    return data;
+}
+
+/**
+ * Update an inventory item
+ */
+export async function updateInventoryItem(id: string, updates: any): Promise<any> {
+    // Don't allow direct stock updates (use transactions instead)
+    const { current_stock, ...safeUpdates } = updates;
+
+    const { data, error } = await supabase
+        .from('inventory_items')
+        .update(safeUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error || !data) throw error;
+
+    await logActivity('UPDATE', 'PRODUCT', id, updates);
+    return data;
+}
+
+/**
+ * Delete an inventory item
+ */
+export async function deleteInventoryItem(id: string): Promise<void> {
+    const { error } = await supabase
+        .from('inventory_items')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw error;
+
+    await logActivity('DELETE', 'PRODUCT', id);
+}
+
+/**
+ * Get low stock items
+ */
+export async function getLowStockItems(): Promise<any[]> {
+    const { data, error } = await supabase
+        .from('low_stock_items')
+        .select('*')
+        .order('shortage', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+}
+
+/**
+ * Get all stock transactions with filters
+ */
+export async function getStockTransactions(filters?: {
+    item_id?: string;
+    transaction_type?: string;
+    start_date?: string;
+    end_date?: string;
+}): Promise<any[]> {
+    let query = supabase
+        .from('stock_transactions')
+        .select(`
+            *,
+            inventory_items(name, unit, sku),
+            employees(name)
+        `)
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+    if (filters?.item_id) {
+        query = query.eq('item_id', filters.item_id);
+    }
+    if (filters?.transaction_type) {
+        query = query.eq('transaction_type', filters.transaction_type);
+    }
+    if (filters?.start_date) {
+        query = query.gte('transaction_date', filters.start_date);
+    }
+    if (filters?.end_date) {
+        query = query.lte('transaction_date', filters.end_date);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
+}
+
+/**
+ * Create a stock transaction (IN/OUT/ADJUSTMENT)
+ */
+export async function createStockTransaction(transaction: any): Promise<any> {
+    const { data, error } = await supabase
+        .from('stock_transactions')
+        .insert({
+            ...transaction,
+            transaction_date: transaction.transaction_date || new Date().toISOString().split('T')[0],
+        })
+        .select()
+        .single();
+
+    if (error || !data) throw error;
+
+    await logActivity('CREATE', 'ENTRY', data.id, {
+        item_id: data.item_id,
+        type: data.transaction_type,
+        quantity: data.quantity
+    });
+
+    return data;
+}
+
+/**
+ * Get transaction history for a specific item
+ */
+export async function getItemTransactionHistory(itemId: string): Promise<any[]> {
+    return getStockTransactions({ item_id: itemId });
+}
+
+/**
+ * Get inventory summary statistics
+ */
+export async function getInventorySummary(): Promise<any> {
+    const [allItems, lowStockItems, recentTransactions] = await Promise.all([
+        getAllInventoryItems(),
+        getLowStockItems(),
+        getStockTransactions({ start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
+    ]);
+
+    const summary = {
+        totalItems: allItems.length,
+        rawMaterials: allItems.filter(i => i.item_type === 'RAW_MATERIAL').length,
+        ipp: allItems.filter(i => i.item_type === 'IPP').length,
+        ancillary: allItems.filter(i => i.item_type === 'ANCILLARY').length,
+        lowStockCount: lowStockItems.length,
+        totalValue: allItems.reduce((sum, item) => {
+            return sum + (item.current_stock * (item.unit_cost || 0));
+        }, 0),
+        recentTransactionCount: recentTransactions.length,
+    };
+
+    return summary;
+}

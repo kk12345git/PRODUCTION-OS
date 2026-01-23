@@ -145,3 +145,77 @@ export const PRODUCTION_CATEGORIES = [
 // Note: Employee roles are now user-defined (free text input)
 // Common examples: Operator, Supervisor, Quality Inspector, Maintenance, Line Leader, Manager, etc.
 
+// ============================================
+// INVENTORY MANAGEMENT TYPES
+// ============================================
+
+export type ItemType = 'RAW_MATERIAL' | 'IPP' | 'ANCILLARY';
+export type TransactionType = 'IN' | 'OUT' | 'ADJUSTMENT';
+export type ReferenceType = 'PURCHASE' | 'PRODUCTION' | 'USAGE' | 'RETURN' | 'ADJUSTMENT';
+
+export interface InventoryItem {
+    id: string;
+    name: string;
+    item_type: ItemType;
+    category_id: string | null;
+    sku: string | null;
+    unit: string;
+    current_stock: number;
+    minimum_stock: number;
+    unit_cost: number | null;
+    description: string | null;
+    created_at: string;
+    updated_at: string;
+    // Joined data
+    category?: ProductCategory;
+}
+
+export interface StockTransaction {
+    id: string;
+    item_id: string;
+    transaction_type: TransactionType;
+    quantity: number;
+    reference_type: string | null;
+    reference_id: string | null;
+    notes: string | null;
+    performed_by: string | null;
+    transaction_date: string;
+    created_at: string;
+    // Joined data
+    item?: InventoryItem;
+    employee?: Employee;
+}
+
+export interface InventoryItemInput {
+    name: string;
+    item_type: ItemType;
+    category_id?: string;
+    sku?: string;
+    unit: string;
+    minimum_stock?: number;
+    unit_cost?: number;
+    description?: string;
+}
+
+export interface StockTransactionInput {
+    item_id: string;
+    transaction_type: TransactionType;
+    quantity: number;
+    reference_type?: ReferenceType;
+    reference_id?: string;
+    notes?: string;
+    performed_by?: string;
+    transaction_date?: string;
+}
+
+export interface LowStockItem {
+    id: string;
+    name: string;
+    item_type: ItemType;
+    sku: string | null;
+    current_stock: number;
+    minimum_stock: number;
+    unit: string;
+    shortage: number;
+}
+
